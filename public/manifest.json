@@ -1,0 +1,25 @@
+{
+    "name": "SoftSubs",
+    "version": "1.0.0",
+    "description": "Converts hard embedded subtitles from videos into soft subtitles, and overlays them on videos.",
+    "manifest_version": 3,
+    "author": "Julian Rachele",
+    "permissions": [
+        "activeTab",
+        "scripting"
+      ],
+      "background": {
+        "service_worker": "background.js"
+      },
+    "content_scripts": [
+        {
+          "matches": ["<all_urls>"],
+          "js": ["content.js"],
+          "run_at": "document_idle"
+        }
+      ],
+    "action": {
+        "default_popup": "index.html",
+        "default_title": "SoftSubs"
+    }
+}
