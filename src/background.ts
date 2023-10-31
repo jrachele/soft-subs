@@ -1,15 +1,24 @@
-let active = false;
+chrome.runtime.onInstalled.addListener(function() {
+    let defaults = {
+        enabled: true,
+        lang: 'ch',
+        confidence: 97.0,
+        screenRegion: 80.0
+    };
 
-function makeOrange(color: string): void {
-    document.body.style.backgroundColor = color;
-}
-
-chrome.action.onClicked.addListener((tab) => {
-    active = !active;
-    const color = active ? 'orange' : 'white';
-    chrome.scripting.executeScript({
-        target: {tabId: tab.id ? tab.id : -1},
-        func: makeOrange,
-        args: [color]
-    }).then();
+    chrome.storage.sync.get(['enabled', 'lang', 'confidence'], function(settings) {
+        if (typeof settings.enabled === 'undefined') {
+            chrome.storage.sync.set({enabled: defaults.enabled});
+        }
+        if (typeof settings.lang === 'undefined') {
+            chrome.storage.sync.set({lang: defaults.lang});
+        }
+        if (typeof settings.confidence === 'undefined') {
+            chrome.storage.sync.set({confidence: defaults.confidence});
+        }
+        if (typeof settings.screenRegion === 'undefined') {
+            chrome.storage.sync.set({screenRegion: defaults.screenRegion});
+        }
+        // Repeat for more options
+    });
 });

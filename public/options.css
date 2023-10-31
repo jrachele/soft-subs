@@ -1,0 +1,8 @@
+.vertical {
+    /* height: 5px; */
+    width: 100px;
+    -webkit-transform: rotate(90deg);
+    margin-left: 20px;
+    margin-top: 50px;
+    margin-bottom: 50px;
+}

@@ -1,83 +1,163 @@
-const { createWorker } = require('tesseract.js');
+var ENABLED = true;
+var LANG = "ch";
+var CONFIDENCE = 97.0;
+var SCREEN_REGION = 80.0;
 
 async function main(): Promise<void> {
-    // Get the video element
-    var video = document.querySelector('video');
+  chrome.storage.onChanged.addListener(settingsChanged);
 
+  // Get the video element
+  var video = <HTMLVideoElement> document.querySelector("video");
+
+  if (video === null) {
+    console.log("Video is null!");
+    return;
+  }
+
+  console.log("SoftSubs Loaded.");
+
+  // Listen for the pause event
+  video.addEventListener("pause", captureVideoScreenshot);
+  video.addEventListener("play", clearAll);
+  video.addEventListener("change", clearAll);
+  video.addEventListener("keypress", clearAll);
+  video.addEventListener("resize", captureVideoScreenshot);
+}
+
+function getScreenRegionOffset() {
+    var video = <HTMLVideoElement> document.querySelector("video");
     if (video === null)
     {
-        console.log("Video is null!");
-        return;
+        return 0;
     }
 
-    // Listen for the pause event
-    video.addEventListener('pause', async function() {
-        console.log("Video paused!");
+    return video.videoHeight * (SCREEN_REGION / 100);
+}
 
-        // Create a canvas element
-        let canvas = document.createElement('canvas');
+async function captureVideoScreenshot() {
+    if (!ENABLED) return;
 
-        // Get the 2D context of the canvas
-        let context = canvas!.getContext('2d');
+    // Create a canvas element
+    let canvas = document.createElement("canvas");
 
-        // Set the canvas dimensions to match the video
-        canvas.width = video!.videoWidth;
-        canvas.height = video!.videoHeight;
+    // Get the 2D context of the canvas
+    let context = canvas!.getContext("2d");
 
-        // Draw the current frame of the video onto the canvas
-        context.filter = "contrast(2) brightness(0.75)";
-        context!.drawImage(video!, 0, 0, canvas.width, canvas.height);
-        canvas.style.position = "fixed";
-        canvas.classList.add('soft-sub');
-        document.body.appendChild(canvas);
+    let screenRegionOffset = getScreenRegionOffset();
 
-        // You can then convert this to a data URL or Blob to download or display it
-        let frameDataUrl = canvas.toDataURL('image/png');
+    canvas.width = this.videoWidth;
+    canvas.height = this.videoHeight;
+    context.drawImage(this, 0, 0, canvas.width, canvas.height);
 
-        // The canvas is not appended to the document, so it's not visible.
-  
-        // Now you can use frameDataUrl for further processing...
-        const worker = await createWorker('chi_sim');
+    // Draw the current frame of the video onto the canvas, but crop the proper screen region
+    let [sx, sy, sWidth, sHeight] = [0, screenRegionOffset, this.videoWidth, this.videoHeight - screenRegionOffset];
 
-        let heightRatio = video.videoHeight / window.innerHeight;
-        let videoRect = video.getBoundingClientRect();
+    var buffer = document.createElement('canvas');
+    var bCtx = buffer.getContext('2d');
 
-        let videoOffset = video.videoHeight * 0.25;
+    buffer.width = sWidth;
+    buffer.height = sHeight;
+    bCtx.drawImage(canvas, sx, sy, sWidth, sHeight, 0, 0, buffer.width, buffer.height);
 
-        const result = await worker.recognize(frameDataUrl, {
-            rectangle: { top: video.videoHeight - videoOffset, left: 0, width: video.videoWidth, height: videoOffset },
-          });
-        console.log(result);
+    let dataUrl = buffer.toDataURL("image/png");
 
-
-        let symbols = result.data.symbols.filter(symbol => symbol.confidence >= 95.0 && symbol.text.match(/[\u3400-\u9FBF]/));
-        symbols.forEach(symbol => {
-            let textOverlay = document.createElement('div');
-            textOverlay.classList.add('soft-sub');
-            textOverlay.style.position = 'absolute';
-            textOverlay.style.fontSize = (heightRatio * symbol.word.font_size) + 'px';
-            // textOverlay.style.fontSize = `${symbol.word.font_size}pt`
-            textOverlay.style.left = videoRect.x + symbol.bbox.x0 + 'px';
-            textOverlay.style.top = videoRect.y + symbol.bbox.y0 + 'px';
-            textOverlay.style.color = 'transparent';
-            textOverlay.innerHTML = symbol.text;
-            document.body.appendChild(textOverlay);
-            console.log(textOverlay);
-        });
-
-
-        await worker.terminate();
-
-});
-
-    video.addEventListener('play', clearAll);
-    video.addEventListener('change', clearAll);
-
+    fetch(`http://localhost:5000/ocr/${LANG}`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        image: dataUrl,
+      }),
+    })
+      .then((response) => response.json())
+      .then((data) => drawSoftSubs(this, data))
+      .catch((error) => {
+        console.error("Error:", error);
+      });
 
 }
 
+function drawSoftSubs(video, data) {
+    if (!ENABLED) return;
+    clearAll();
+
+    if (data === undefined)
+    {
+        return;
+    }
+
+    data = data[0];
+    if (data == null) return;
+
+    let screenRegionOffset = getScreenRegionOffset();
+    data.forEach(cluster => {
+        var [bounding_box, text_data] = cluster;
+        var [text, confidence] = text_data;
+
+        if (confidence < CONFIDENCE / 100) {
+            console.log(`Confidence low, throwing out ${text}, (confidence ${confidence})`);
+            return;
+        } 
+
+        var [topleft, topright, bottomright, bottomleft] = bounding_box;
+        var font_size_px = bottomleft[1] - topleft[1];
+
+        let videoRect = video.getBoundingClientRect();
+        let videoRatio = [videoRect.width / video.videoWidth, videoRect.height / video.videoHeight];
+        
+
+        let textOverlay = document.createElement('div');
+        textOverlay.classList.add('soft-sub');
+        textOverlay.style.position = 'absolute';
+        textOverlay.style.fontSize = `${font_size_px * videoRatio[1] * 0.9}px`;
+        textOverlay.style.left = `${(topleft[0] * videoRatio[0]) + videoRect.left}px`;
+        textOverlay.style.top = `${((topleft[1] + screenRegionOffset) * videoRatio[1]) + videoRect.top}px`;
+        textOverlay.style.backgroundColor = "#ffffffcc";
+        // textOverlay.style.color = 'transparent';
+        textOverlay.innerHTML = text;
+        document.body.appendChild(textOverlay);
+    });
+}
+
+
 function clearAll() {
-    document.querySelectorAll('.soft-sub').forEach((e, k, p) => e.parentElement.removeChild(e));
+  document
+    .querySelectorAll(".soft-sub")
+    .forEach((e, k, p) => e.parentElement.removeChild(e));
+}
+
+function settingsChanged(changes, namespace) {
+    for (let [key, { oldValue, newValue }] of <any>Object.entries(changes)) {
+        if (key === "enabled")
+        {
+            ENABLED = newValue;
+        }
+        else if (key === "lang")
+        {
+            LANG = newValue;
+        }
+        else if (key === "confidence")
+        {
+            CONFIDENCE = newValue;
+        }
+        else if (key === "screenRegion")
+        {
+            SCREEN_REGION = newValue;
+        }
+        console.log(
+          `Storage key "${key}" in namespace "${namespace}" changed.`,
+          `Old value was "${oldValue}", new value is "${newValue}".`
+        );
+      }
+
+    if (!ENABLED)
+    {
+        clearAll();
+    } else {
+        let video = document.querySelector('video');
+        captureVideoScreenshot.call(video);
+    }
 }
 
 main();

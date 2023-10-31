@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>SoftSubs Extension Settings</title>
+    <link rel="stylesheet" href="options.css">
+    <script src="options.js"></script>
+</head>
+<body>
+    <h3>SoftSubs</h3>
+    <label for="enableExtension">Enable Extension:</label>
+    <input type="checkbox" id="enableExtension">
+    <hr>
+
+    <label for="language">Choose a language:</label>
+    <select name="language" id="language">
+    <option value="ch">Chinese (Simplified)</option>
+    <option value="chinese_cht">Chinese (Traditional)</option>
+    <option value="japan">Japanese</option>
+    <option value="korean">Korean</option>
+    <option value="ar">Arabic</option>
+    <option value="en">English</option>
+    <option value="fr">French</option>
+    </select>
+
+    <hr>
+    <label for="confidence">OCR Confidence cutoff:</label>
+    <input type="range" min="1" max="99" value="97" class="slider" name="confidence" id="confidence">
+    <span id="confidenceVal"></span>
+
+    <hr>
+
+    <label for="screenregion">Screen capture region</label>
+    <input type="range" min="0" max="100" value="80" class="slider vertical" name="screenregion" id="screenregion">
+
+    <span id="screenregionVal"></span>
+</body>
+</html>

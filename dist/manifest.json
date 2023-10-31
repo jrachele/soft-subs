@@ -6,7 +6,8 @@
     "author": "Julian Rachele",
     "permissions": [
         "activeTab",
-        "scripting"
+        "scripting",
+        "storage"
       ],
       "background": {
         "service_worker": "background.js"
@@ -18,8 +19,9 @@
           "run_at": "document_idle"
         }
       ],
+    "options_page": "options.html",
     "action": {
-        "default_popup": "index.html",
+        "default_popup": "options.html",
         "default_title": "SoftSubs"
     }
 }
