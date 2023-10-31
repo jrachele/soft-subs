@@ -48,6 +48,8 @@ def ocr(lang):
     ocr = get_ocr(lang)
     res = ocr.ocr(image_data)
 
+    print(res)
+
     response = jsonify(res)
 
     response.headers.add('Access-Control-Allow-Origin', '*')
